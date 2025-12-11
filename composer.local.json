@@ -2,5 +2,34 @@
   "name": "municipio-se/municipio-deployment-custom",
   "license": "MIT",
   "description": "Additions for you own install of municipo.",
-  "require": {}
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://wpackagist.org"
+    },
+    {
+      "type": "package",
+      "package": {
+        "name": "local/miniorange-saml-sso",
+        "version": "1.0.0",
+        "type": "wordpress-muplugin",
+        "dist": {
+          "url": "plugins/miniorange-saml-20-single-sign-on-fork.zip",
+          "type": "zip"
+        }
+      }
+    }
+  ],
+  "require": {
+    "wpackagist-plugin/authldap": "3.1.3",
+    "local/miniorange-saml-sso": "1.0.0"
+  },
+  "extra": {
+    "installer-paths": {
+      "wp-content/mu-plugins/{$name}/": [
+        "type:wordpress-muplugin",
+        "wpackagist-plugin/authldap"
+      ]
+    }
+  }
 }
