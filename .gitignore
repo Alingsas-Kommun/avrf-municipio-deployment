@@ -13,7 +13,6 @@
 /vendor/
 /wp/
 .DS_Store
-composer.lock
 auth.json
 db/*.sql
 # Devcontainer
@@ -25,3 +24,7 @@ db/*.sql
 *.crt
 franken/Caddyfile
 db/db.sqlite
+.secrets
+.claude/settings.local.json
+.composer-merge-active
+composer.*.bkup

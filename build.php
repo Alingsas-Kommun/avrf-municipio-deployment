@@ -46,7 +46,12 @@ $removables = [
     'db',
     '.devcontainer',
     '.vscode',
-    'install.html'
+    'install.html',
+    'build-pre.php',
+    'composer-local-merge.php',
+    'test-composer-merge.sh',
+    'franken',
+    '.composerignore',
 ];
 
 

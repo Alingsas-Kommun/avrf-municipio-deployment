@@ -10,16 +10,16 @@
     <img src="images/municipio.svg" alt="Logo" width="300">
   </a>
 </p>
-<h3>Municipio 4 (Standard) - Deployment</h3>
+<h3>Municipio (Standard) - Deployment</h3>
 <p>
-  Simplified deployment of Municipio 4
+  Simplified deployment of Municipio
   <br />
   <a href="https://github.com/municipio-se/municipio-deployment/issues">Report Bug</a>
   ·
   <a href="https://github.com/municipio-se/municipio-deployment/issues">Request Feature</a>
 </p>
 
-## About Municipio 4 (Standard) - Deployment
+## About Municipio (Standard) - Deployment
 This repository simplifies the deployment for users of Municpio. Simply fork this repository and setup deployment details for your hosting environment and deploy whenever it suits you. 
 
 This will ensure that deployments can be made by fetching the upstream of the forked repository without any technical knowledge. Guide on how to fetch a upstream repo with github user interface can be found here: https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork.
@@ -30,9 +30,49 @@ This will ensure that deployments can be made by fetching the upstream of the fo
 3. Update to upstream, whenever you want to update your production enviroment with the latest version of Municipio.
 
 ## Adding custom dependencies
-You may add your own dependencies in composer.local.json file. This file is automatically read in build. We have made it a separate file to avoid merge conflicts.
+You may add your own dependencies in the `composer.local.json` file. Add packages to the `require` or `require-dev` sections as needed. You can also add custom `repositories` entries (VCS, package, path, etc.) for packages that are not available on Packagist or wpackagist:
 
-You may also add plugins locally to your server with the folder name of the plugin prefixed with "local_". Normally they would be removed during the deploy to enshure one source of truth, however the deploy script will respect the "local_" string and keep them. 
+```json
+{
+  "name": "municipio-se/municipio-deployment-custom",
+  "license": "MIT",
+  "description": "Additions for your own install of Municipio.",
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/your-org/your-private-plugin"
+    }
+  ],
+  "require": {
+    "vendor/package": "^1.0"
+  },
+  "require-dev": {
+    "vendor/dev-package": "^2.0"
+  }
+}
+```
+
+### How it works
+The build process uses `composer-local-merge.php` to handle local customisations without permanently modifying version-controlled files:
+
+1. **Pre-install** — `composer.json` (and `composer.lock` if present) are backed up, and the contents of `composer.local.json` (`repositories`, `require`, `require-dev`) are merged in. Repository entries already present in `composer.json` are deduplicated automatically. `composer.lock` is removed so Composer resolves the full dependency tree fresh with the new sources.
+2. **Install** — `composer install` runs against the merged `composer.json`.
+3. **Post-install** — The original `composer.json` and `composer.lock` are restored from backup, leaving no trace of the local merge in version-controlled files.
+
+If `composer.local.json` is absent or contains no `repositories`, `require`, or `require-dev` entries the script exits immediately and nothing is changed.
+
+### Running locally (without the build script)
+If you run `composer install` or `composer update` directly on your local machine, you must wrap it with the merge script manually:
+
+```bash
+php composer-local-merge.php pre-install
+composer install
+php composer-local-merge.php post-install
+```
+
+Skipping this means your local packages will not be resolved and any custom repositories will not be available to Composer.
+
+You may also add plugins locally to your server with the folder name of the plugin prefixed with "local_". Normally they would be removed during the deploy to ensure one source of truth, however the deploy script will respect the "local_" prefix and keep them. 
 
 ## Parameters
 Add the following secrets to your github repository secrets section (https://docs.github.com/en/actions/security-guides/encrypted-secrets). We do recommend that you assign these secrets locally to your repository. You can however use organization level secret to everything except the path if you determine that they will persist. 
@@ -43,6 +83,7 @@ Used for branch names: production, master
 | Secret name                     | Description                                                                  | Required |
 |---------------------------------|------------------------------------------------------------------------------|----------|
 | DEPLOY_REMOTE_HOST_PROD         | Host domain or ip                                                            | true     |
+| DEPLOY_REMOTE_PORT_PROD         | SSH port for deployment (defaults to 22 if not specified)                    | false    |
 | DEPLOY_REMOTE_PATH_PROD         | Host deployment path                                                         | true     |
 | DEPLOY_REMOTE_BACKUP_DIR_PROD   | Host rsync backup path                                                       | true     |
 | DEPLOY_REMOTE_USER_PROD         | Host deploy ssh user name (In sudoers with nopassword enabled)               | true     |
@@ -58,6 +99,7 @@ Used for branch names: stage, beta, test
 | Secret name                     | Description                                                                  | Required |
 |---------------------------------|------------------------------------------------------------------------------|----------|
 | DEPLOY_REMOTE_HOST_STAGE        | Host domain or ip                                                            | true     |
+| DEPLOY_REMOTE_PORT_STAGE        | SSH port for deployment (defaults to 22 if not specified)                    | false    |
 | DEPLOY_REMOTE_PATH_STAGE        | Host deployment path                                                         | true     |
 | DEPLOY_REMOTE_BACKUP_DIR_STAGE  | Host rsync backup path                                                       | true     |
 | DEPLOY_REMOTE_USER_STAGE        | Host deploy ssh user name (In sudoers with nopassword enabled)               | true     |
@@ -81,9 +123,10 @@ You may contribute to this repository if you feel that anything is missing. Simp
 We do suggest that you include the following softare on the target machine.
 
 - Litespeed (prefered option) / NGINX / Apache
-- PHP ^8.1
+- PHP ^8.3
 - Rsync (required for deployment)
 - MySQL or MariaDB
+- Caddy as a Reverse Proxy (ssl termination etc)
 
 ### Optional addons
 Municipio runs better with these additional packages, applications and settings. 
@@ -92,6 +135,10 @@ Municipio runs better with these additional packages, applications and settings.
 - Imagic (highly encouraged)
 - OpCache (highly encouraged)
 - S3 Compatible Object storage (Tested with Swift)
+
+### Adding a package
+If you want to add a package, register it using Composer as usual (see the Composer require command: https://getcomposer.org/doc/03-cli.md#require-r).
+In some cases, Composer may fail due to dependency conflicts caused by leftover local cache or build artifacts. If this happens, run the composer update-lockfile command. This will execute Composer inside an isolated container and automatically clear any leftover residue from previous runs. The lockfile MUST be committed in all cases. 
 
 ### Resources
 What resources you should give the machine is highly individual depending on your anticipated amount of traffic. But let each PHP process have at least 512MB memory to allocate. This high amount is due to some image processing being made in runtime. 
