@@ -1,32 +1,139 @@
-name: Build and deploy stage, beta, test release.
+name: Build and deploy staging
 
 on:
   workflow_dispatch:
-  push:
-    branches: [stage, beta, test]
-    paths-ignore:
-      - .github/**
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
+    environment: staging
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 24.11.1
 
-    - uses: helsingborg-stad/municipio-deploy/4.1@master
-      with:
-        deploy-host: ${{ secrets.DEPLOY_REMOTE_HOST_STAGE }}
-        deploy-port: ${{ secrets.DEPLOY_REMOTE_PORT_STAGE }}
-        deploy-host-path: ${{ secrets.DEPLOY_REMOTE_PATH_STAGE  }}
-        deploy-host-backup-path: ${{ secrets.DEPLOY_REMOTE_BACKUP_DIR_STAGE }}
-        deploy-host-user: ${{ secrets.DEPLOY_REMOTE_USER_STAGE }}
-        deploy-host-user-key: ${{ secrets.DEPLOY_KEY_STAGE }}
-        deploy-host-web-server-user: ${{ secrets.WEB_SERVER_USER_STAGE }}
-        deploy-host-pagecache-path: ${{ secrets.DEPLOY_LS_PAGECACHE_PATH_STAGE }}
-        php-version: ${{ secrets.PHP_VERSION }}
-        kill-lsphp: true
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        acf-url: ${{ secrets.ACF_URL }}
-        tideways-api-key: ${{ secrets.TIDEWAYS_API_KEY_DEFAULT }}
-        tideways-env: ${{ secrets.TIDEWAYS_ENV_STAGE }}
+      - name: Setup PHP with composer v2.
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ vars.PHP_VERSION }}
+          tools: composer:v2
+        env:
+          COMPOSER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get Composer Cache Directory.
+        id: composer-cache
+        run: |
+          echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Cache composer packages.
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Cache node modules.
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Validate composer.json and composer.lock.
+        run: composer validate
+        shell: bash
+
+      - name: Merge composer.local.json (pre-install).
+        run: |
+          if [ -f composer-local-merge.php ]; then
+            php composer-local-merge.php pre-install
+          else
+            echo "No composer-local-merge.php found - skipping local merge"
+          fi
+        shell: bash
+
+      - name: Install composer dependencies.
+        run: composer install --prefer-dist --no-progress --no-suggest --optimize-autoloader --classmap-authoritative
+        shell: bash
+
+      - name: Restore composer files after local merge (post-install).
+        run: |
+          if [ -f composer-local-merge.php ]; then
+            php composer-local-merge.php post-install
+          else
+            echo "No composer-local-merge.php found - skipping restore"
+          fi
+        shell: bash
+
+      - name: Write composer versions info file.
+        run: composer show >> composer.versions.md
+        shell: bash
+
+      - name: Inject access token in .npmrc.
+        run: |
+          echo "@helsingborg-stad:registry=https://npm.pkg.github.com/helsingborg-stad" >> ~/.npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
+        shell: bash
+
+      - name: Get ACF
+        run: |
+          wget "${{ secrets.ACF_URL }}" -O acf.zip
+          unzip acf.zip -d wp-content/plugins/
+          rm acf.zip
+        shell: bash
+
+      - name: Execute buildscripts in themes and plugins folders.
+        run: php ./build.php --cleanup --no-composer-in-child-packages --install-npm
+        shell: bash
+
+      - name: Cleanup .npmrc
+        run: rm ~/.npmrc
+        shell: bash
+
+      - name: The rsync deployment to www-data user.
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avzrog --ignore-errors --delete --backup --backup-dir=${{ vars.DEPLOY_REMOTE_BACKUP_DIR }}/$GITHUB_SHA --exclude="/config" --exclude config-example --exclude wp-content/uploads --exclude wp-content/plugins/gravityforms --exclude wp-content/plugins/wp-schema-pro --exclude track-assets --exclude wp-content/plugins/volontar-wordpress --exclude wp-content/languages --exclude .htaccess --exclude security.txt --exclude wp-content/plugins/local_* --exclude wp-content/mu-plugins/local_* --exclude wp-content/fonts
+          path: .
+          remote_path: ${{ vars.DEPLOY_REMOTE_PATH }}
+          remote_host: ${{ vars.DEPLOY_REMOTE_HOST }}
+          remote_user: ${{ vars.DEPLOY_REMOTE_USER }}
+          remote_key: ${{ secrets.DEPLOY_KEY }}
+          remote_port: ${{ vars.DEPLOY_REMOTE_PORT }}
+
+      - name: Compress backup files.
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          script: tar --remove-files -zcf ${{ vars.DEPLOY_REMOTE_BACKUP_DIR }}/${{ github.sha }}.tar.gz -C ${{ vars.DEPLOY_REMOTE_BACKUP_DIR }} ${{ github.sha }}
+          host: ${{ vars.DEPLOY_REMOTE_HOST }}
+          username: ${{ vars.DEPLOY_REMOTE_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          port: ${{ vars.DEPLOY_REMOTE_PORT }}
+          fingerprint: ${{ secrets.DEPLOY_FINGERPRINT }}
+
+      - name: Delete backups older than 7 days.
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          script: find ${{ vars.DEPLOY_REMOTE_BACKUP_DIR }} -type f -mtime +7 -name '*.tar.gz' -delete
+          host: ${{ vars.DEPLOY_REMOTE_HOST }}
+          username: ${{ vars.DEPLOY_REMOTE_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          port: ${{ vars.DEPLOY_REMOTE_PORT }}
+          fingerprint: ${{ secrets.DEPLOY_FINGERPRINT }}
+
+      - name: Set file permissions.
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          script: |
+            find ${{ vars.DEPLOY_REMOTE_PATH }} -path ${{ vars.DEPLOY_REMOTE_PATH }} -prune -o ! -type l -exec chmod g+r {} +
+            find ${{ vars.DEPLOY_REMOTE_PATH }}/wp-content/uploads -path ${{ vars.DEPLOY_REMOTE_PATH }}/wp-content/uploads -prune -o ! -type l -exec chmod g+rw {} +
+          host: ${{ vars.DEPLOY_REMOTE_HOST }}
+          username: ${{ vars.DEPLOY_REMOTE_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          port: ${{ vars.DEPLOY_REMOTE_PORT }}
+          fingerprint: ${{ secrets.DEPLOY_FINGERPRINT }}
