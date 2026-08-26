@@ -29,7 +29,13 @@
           "PKSA-gh7h-hhy4-byg7": "dompdf/dompdf is pinned to v3.1.5 by helsingborg-stad/municipio 7.7.68; remove this ignore when municipio is upgraded to a version requiring dompdf v3.1.6+.",
           "PKSA-mwt3-h9tv-kx78": "dompdf/dompdf is pinned to v3.1.5 by helsingborg-stad/municipio 7.7.68; remove this ignore when municipio is upgraded to a version requiring dompdf v3.1.6+.",
           "PKSA-hp6n-n4kz-21wk": "dompdf/dompdf is pinned to v3.1.5 by helsingborg-stad/municipio 7.7.68; remove this ignore when municipio is upgraded to a version requiring dompdf v3.1.6+.",
-          "PKSA-mckv-s5hg-868k": "dompdf/dompdf is pinned to v3.1.5 by helsingborg-stad/municipio 7.7.68; remove this ignore when municipio is upgraded to a version requiring dompdf v3.1.6+."
+          "PKSA-mckv-s5hg-868k": "dompdf/dompdf is pinned to v3.1.5 by helsingborg-stad/municipio 7.7.68; remove this ignore when municipio is upgraded to a version requiring dompdf v3.1.6+.",
+          "PKSA-5mzr-szzf-z6cn": "league/commonmark is pinned to 2.8.2 by helsingborg-stad/municipio 7.7.68; remove this ignore when municipio is upgraded to a version requiring league/commonmark 2.9.0+.",
+          "PKSA-cqd6-fg4n-nxpf": "league/commonmark is pinned to 2.8.2 by helsingborg-stad/municipio 7.7.68; remove this ignore when municipio is upgraded to a version requiring league/commonmark 2.9.0+.",
+          "PKSA-1q6p-sqkj-8mmj": "league/commonmark is pinned to 2.8.2 by helsingborg-stad/municipio 7.7.68; remove this ignore when municipio is upgraded to a version requiring league/commonmark 2.9.0+.",
+          "PKSA-mc58-w91n-f5gv": "league/commonmark is pinned to 2.8.2 by helsingborg-stad/municipio 7.7.68; remove this ignore when municipio is upgraded to a version requiring league/commonmark 2.9.0+.",
+          "PKSA-t21r-vtr5-3mdz": "league/commonmark is pinned to 2.8.2 by helsingborg-stad/municipio 7.7.68; remove this ignore when municipio is upgraded to a version requiring league/commonmark 2.9.0+.",
+          "PKSA-scnn-p8mm-jbft": "league/commonmark is pinned to 2.8.2 by helsingborg-stad/municipio 7.7.68; remove this ignore when municipio is upgraded to a version requiring league/commonmark 2.9.0+."
         }
       }
     }
