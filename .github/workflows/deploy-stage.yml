@@ -57,6 +57,10 @@ jobs:
           fi
         shell: bash
 
+      - name: Configure Composer authentication for ACF PRO.
+        run: composer config --global --auth http-basic.connect.advancedcustomfields.com "${{ secrets.ACF_PRO_KEY }}" "${{ vars.DEPLOY_HOST }}"
+        shell: bash
+
       - name: Install composer dependencies.
         run: composer install --prefer-dist --no-progress --no-suggest --optimize-autoloader --classmap-authoritative
         shell: bash
@@ -78,13 +82,6 @@ jobs:
         run: |
           echo "@helsingborg-stad:registry=https://npm.pkg.github.com/helsingborg-stad" >> ~/.npmrc
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
-        shell: bash
-
-      - name: Get ACF
-        run: |
-          wget "${{ secrets.ACF_URL }}" -O acf.zip
-          unzip acf.zip -d wp-content/plugins/
-          rm acf.zip
         shell: bash
 
       - name: Execute buildscripts in themes and plugins folders.
