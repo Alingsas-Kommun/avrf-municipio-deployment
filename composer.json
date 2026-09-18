@@ -19,7 +19,12 @@
       "johnpbloch/wordpress-core-installer": true,
       "php-http/discovery": true
     },
-    "optimize-autoloader": true
+    "optimize-autoloader": true,
+    "policy": {
+      "advisories": {
+        "block": false
+      }
+    }
   },
   "minimum-stability": "dev",
   "prefer-stable": true,
